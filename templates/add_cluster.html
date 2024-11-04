@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Cadastro de Condições de Clusters</h2>
+    <form method="POST" action="{{ url_for('add_cluster') }}">
+        <div class="form-group">
+            <label for="nome">Nome do Cluster</label>
+            <input type="text" class="form-control" id="nome" name="nome" required>
+        </div>
+        <div class="form-group">
+            <label for="ticket_medio">Ticket Médio (R$)</label>
+            <input type="number" class="form-control" id="ticket_medio" name="ticket_medio" required>
+        </div>
+        <div class="form-group">
+            <label for="intervalo_dias">Intervalo de Dias</label>
+            <input type="number" class="form-control" id="intervalo_dias" name="intervalo_dias" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Cadastrar Cluster</button>
+    </form>
+</div>
+{% endblock %}

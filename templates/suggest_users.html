@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Sugestões de Clusters para Usuários</h2>
+    <p>Abaixo estão as sugestões de clusters para os usuários que ainda não fazem parte de nenhum cluster.</p>
+    
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Usuário</th>
+                <th>Cluster Sugerido</th>
+                <th>Ação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sugestao in sugestoes %}
+            <tr>
+                <td>{{ sugestao.usuario_nome }}</td>
+                <td>{{ sugestao.cluster_nome }}</td>
+                <td>
+                    <!-- Botão para Adicionar ao Cluster -->
+                    <form action="{{ url_for('add_user_to_cluster') }}" method="post" style="display: inline;">
+                        <input type="hidden" name="user_id" value="{{ sugestao.usuario_id }}">
+                        <input type="hidden" name="cluster_id" value="{{ sugestao.cluster_id }}">
+                        <button type="submit" class="btn btn-success">Adicionar ao Cluster</button>
+                    </form>
+
+                    <!-- Botão para abrir o modal com loading -->
+                    <button type="button" class="btn btn-info" onclick="fetchAnalysis({{ sugestao.usuario_id }}, {{ sugestao.cluster_id }})">
+                        Ver Motivo
+                    </button>
+
+                    <!-- Modal para mostrar o motivo -->
+                    <div class="modal fade" id="motivoModal{{ sugestao.usuario_id }}_{{ sugestao.cluster_id }}" tabindex="-1" aria-labelledby="motivoModalLabel{{ sugestao.usuario_id }}_{{ sugestao.cluster_id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="motivoModalLabel{{ sugestao.usuario_id }}_{{ sugestao.cluster_id }}">Motivo para a Sugestão</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body" id="modalBody{{ sugestao.usuario_id }}_{{ sugestao.cluster_id }}">
+                                    <!-- Conteúdo da análise será carregado aqui após o carregamento -->
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Overlay de carregamento no centro da página -->
+                    <div id="loadingOverlay" class="position-fixed top-50 start-50 translate-middle d-none" style="z-index: 1050;">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function fetchAnalysis(usuario_id, cluster_id) {
+    const modalId = `motivoModal${usuario_id}_${cluster_id}`;
+    const modalElement = document.getElementById(modalId);
+    const modalBody = document.getElementById(`modalBody${usuario_id}_${cluster_id}`);
+    const loadingOverlay = document.getElementById("loadingOverlay");
+
+    // Exibe o overlay de carregamento
+    loadingOverlay.classList.remove("d-none");
+
+    // Limpa o conteúdo anterior do modal
+    modalBody.innerHTML = "";
+
+    // Verificar se IDs foram passados corretamente
+    if (!usuario_id || !cluster_id) {
+        console.error("Erro: IDs do usuário ou cluster estão ausentes.");
+        loadingOverlay.classList.add("d-none");
+        modalBody.innerHTML = `<p>Erro: IDs do usuário ou cluster ausentes.</p>`;
+        return;
+    }
+
+    // Solicitação AJAX para obter ou gerar a análise
+    fetch("/get_analysis", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ usuario_id: usuario_id, cluster_id: cluster_id })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Esconde o overlay de carregamento
+        loadingOverlay.classList.add("d-none");
+
+        // Preenche o conteúdo do modal com a análise e informações do usuário e cluster
+        if (data.analise) {
+            modalBody.innerHTML = `
+                <p><strong>Usuário:</strong> ${data.usuario_nome}</p>
+                <p><strong>Ticket Médio do Usuário:</strong> ${data.usuario_ticket_medio}</p>
+                <p><strong>Cluster Sugerido:</strong> ${data.cluster_nome}</p>
+                <p><strong>Requisito de Ticket Médio do Cluster:</strong> ${data.cluster_ticket_medio}</p>
+                <hr>
+                <p><strong>Motivo da Sugestão:</strong> ${data.analise}</p>
+            `;
+        } else {
+            modalBody.innerHTML = `<p>Erro ao gerar a análise.</p>`;
+        }
+
+        // Exibe o modal usando Bootstrap Modal
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    })
+    .catch(error => {
+        loadingOverlay.classList.add("d-none");
+        console.error("Erro ao conectar com o servidor:", error);
+        modalBody.innerHTML = `<p>Erro ao conectar com o servidor.</p>`;
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    });
+}
+</script>
+
+<style>
+#loadingOverlay {
+    background: rgba(255, 255, 255, 0.8);
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 8px;
+    padding: 20px;
+    z-index: 1050;
+}
+</style>
+{% endblock %}

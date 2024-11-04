@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Visualização dos Clusters</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Cluster ID</th>
+                <th>Nome do Cluster</th>
+                <th>Ticket Médio</th>
+                <th>Intervalo de Dias</th>
+                <th>Número de Usuários</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cluster in clusters %}
+            <tr>
+                <td>{{ cluster.cluster_id }}</td>
+                <td>{{ cluster.nome }}</td>
+                <td>{{ cluster.ticket_medio }}</td>
+                <td>{{ cluster.intervalo_dias }}</td>
+                <td>{{ cluster.num_usuarios }}</td>
+                <td>
+                    <button class="btn btn-primary" onclick="openEditModal({{ cluster.cluster_id }}, '{{ cluster.nome }}')">Editar Nome</button>
+                    <button class="btn btn-info" onclick="openUsersModal({{ cluster.cluster_id }})">Visualizar Usuários</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal para editar nome do cluster -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" action="{{ url_for('edit_cluster_name') }}">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editModalLabel">Editar Nome do Cluster</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="cluster_id" id="editClusterId">
+          <div class="mb-3">
+            <label for="novo_nome" class="form-label">Novo Nome</label>
+            <input type="text" class="form-control" id="novoNome" name="novo_nome" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal para visualizar usuários -->
+<div class="modal fade" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="usersModalLabel">Usuários do Cluster</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome</th>
+              <th>Idade</th>
+              <th>Cidade</th>
+              <th>Ticket Médio</th>
+              <th>Intervalo de Dias</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <!-- Usuários serão carregados aqui via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function openEditModal(clusterId, clusterName) {
+    document.getElementById("editClusterId").value = clusterId;
+    document.getElementById("novoNome").value = clusterName;
+    var editModal = new bootstrap.Modal(document.getElementById("editModal"));
+    editModal.show();
+}
+
+function openUsersModal(clusterId) {
+    fetch(`/get_cluster_users/${clusterId}`)
+        .then(response => response.json())
+        .then(data => {
+            const usersTableBody = document.getElementById("usersTableBody");
+            usersTableBody.innerHTML = '';  // Limpa o conteúdo anterior
+            
+            data.forEach(user => {
+                const row = `
+                    <tr>
+                        <td>${user.id}</td>
+                        <td>${user.nome}</td>
+                        <td>${user.idade}</td>
+                        <td>${user.cidade}</td>
+                        <td>${user.ticket_medio}</td>
+                        <td>${user.intervalo_dias}</td>
+                    </tr>
+                `;
+                usersTableBody.innerHTML += row;
+            });
+            
+            var usersModal = new bootstrap.Modal(document.getElementById("usersModal"));
+            usersModal.show();
+        })
+        .catch(error => console.error('Erro ao carregar usuários:', error));
+}
+</script>
+{% endblock %}
