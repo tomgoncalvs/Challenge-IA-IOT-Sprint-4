@@ -11,7 +11,6 @@ def criar_clusters(cluster_id, nome, ticket_medio, intervalo_dias):
         return
     
     try:
-        # Atualizar o nome do cluster e os parâmetros de criação
         update_query = text("""
             UPDATE cluster_names 
             SET nome = :nome, ticket_medio = :ticket_medio, intervalo_dias = :intervalo_dias 
@@ -25,15 +24,12 @@ def criar_clusters(cluster_id, nome, ticket_medio, intervalo_dias):
                 "cluster_id": cluster_id
             })
         
-        # Consultar os usuários
         query = "SELECT * FROM usuarios"
         df_usuarios = pd.read_sql(query, engine)
         
-        # Aplicar as condições de agrupamento
         cluster = df_usuarios[(df_usuarios['ticket_medio'] > ticket_medio) & 
                               (df_usuarios['intervalo_dias'] <= intervalo_dias)]
         
-        # Inserir os dados de cluster na tabela clusters, evitando duplicidade
         insert_query = text("""
             INSERT INTO clusters (cluster_id, usuario_id, update_date) 
             VALUES (:cluster_id, :usuario_id, :update_date)
@@ -70,7 +66,6 @@ def inserir_dados_iniciais():
         return
     
     try:
-        # Inserir usuários iniciais
         usuarios = [
             {'nome': 'João Silva', 'idade': 34, 'cidade': 'São Paulo', 'ticket_medio': 45.50, 'intervalo_dias': 25},
             {'nome': 'Maria Oliveira', 'idade': 28, 'cidade': 'Rio de Janeiro', 'ticket_medio': 32.00, 'intervalo_dias': 40},
@@ -91,3 +86,21 @@ def inserir_dados_iniciais():
         
     except Exception as e:
         print(f"Erro ao inserir dados: {e}")
+
+def get_cluster_data(cluster_id):
+    engine = create_connection()
+    query = text("SELECT nome, ticket_medio, intervalo_dias FROM cluster_names WHERE cluster_id = :cluster_id")
+    
+    with engine.connect() as connection:
+        result = connection.execute(query, {"cluster_id": cluster_id}).fetchone()
+        
+    if result:
+        # Acessando as colunas usando _mapping para suportar nomes de coluna
+        return {
+            "nome": result._mapping["nome"],
+            "ticket_medio": result._mapping["ticket_medio"],
+            "intervalo_dias": result._mapping["intervalo_dias"]
+        }
+    else:
+        return None
+
