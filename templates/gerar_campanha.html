@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Gerar Campanha de Marketing</h2>
+    <p>Selecione um cluster para gerar uma campanha personalizada baseada nos produtos recomendados para cada grupo de clientes.</p>
+
+    <!-- Mensagens de Sucesso ou Erro -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mt-3">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }}" role="alert">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- Lista de Clusters com Botão para Abrir o Modal -->
+    <div class="list-group mb-3">
+        {% for cluster in clusters %}
+        <button type="button" class="list-group-item list-group-item-action" data-bs-toggle="modal"
+            data-bs-target="#campanhaModal" data-cluster-id="{{ cluster.cluster_id }}"
+            data-cluster-nome="{{ cluster.nome }}" data-produtos="{{ cluster.produtos | join(',') }}">
+            {{ cluster.nome }} - Cluster ID: {{ cluster.cluster_id }}
+        </button>
+        {% endfor %}
+    </div>
+
+    <!-- Modal para Seleção de Produtos e Geração de Campanha -->
+    <div class="modal fade" id="campanhaModal" tabindex="-1" aria-labelledby="campanhaModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="campanhaModalLabel">Gerar Campanha</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="campanhaForm" method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" id="cluster_id" name="cluster_id">
+                        <p id="cluster_nome"></p>
+                        <div class="mb-3">
+                            <label for="produtos" class="form-label">Selecione os Produtos</label>
+                            <select class="form-select" id="produtos" name="produtos" multiple required>
+                                <!-- Produtos serão preenchidos pelo JavaScript -->
+                            </select>
+                            <small class="form-text text-muted">Segure CTRL ou CMD para selecionar múltiplos produtos.</small>
+                        </div>
+                        <!-- Exibição da Campanha Gerada -->
+                        <div id="loadingIndicator" class="text-center d-none">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Gerando campanha...</span>
+                            </div>
+                            <p>Gerando campanha...</p>
+                        </div>
+                        <div id="campanhaResult" class="mt-3 d-none">
+                            <h6>Campanha Gerada</h6>
+                            <p id="campanhaText" class="alert alert-info text-pre-wrap"></p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" id="generateCampaignButton" class="btn btn-primary">Gerar Campanha</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Preenchimento do modal com dados do cluster selecionado
+    const campanhaModal = document.getElementById('campanhaModal');
+    campanhaModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const clusterId = button.getAttribute('data-cluster-id');
+        const clusterNome = button.getAttribute('data-cluster-nome');
+        const produtosLista = button.getAttribute('data-produtos').split(',');
+
+        // Definir valores no modal
+        document.getElementById('cluster_id').value = clusterId;
+        document.getElementById('cluster_nome').textContent = `Cluster Selecionado: ${clusterNome}`;
+
+        // Limpar produtos anteriores e adicionar os novos do cluster
+        const produtosSelect = document.getElementById('produtos');
+        produtosSelect.innerHTML = '';
+        produtosLista.forEach(produto => {
+            const option = document.createElement('option');
+            option.value = produto.trim();
+            option.textContent = produto.trim();
+            produtosSelect.appendChild(option);
+        });
+
+        // Esconder a exibição anterior da campanha e do indicador de loading
+        document.getElementById('campanhaResult').classList.add('d-none');
+        document.getElementById('loadingIndicator').classList.add('d-none');
+    });
+
+    // Função para gerar a campanha via AJAX
+    document.getElementById('generateCampaignButton').addEventListener('click', function () {
+        const clusterId = document.getElementById('cluster_id').value;
+        const produtosSelect = document.getElementById('produtos');
+        const produtos = Array.from(produtosSelect.selectedOptions).map(option => option.value);
+
+        // Mostrar o indicador de loading
+        document.getElementById('loadingIndicator').classList.remove('d-none');
+
+        fetch("{{ url_for('gerar_campanha') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ cluster_id: clusterId, produtos: produtos })
+        })
+            .then(response => response.json())
+            .then(data => {
+                const campanhaResult = document.getElementById('campanhaResult');
+                const campanhaText = document.getElementById('campanhaText');
+                document.getElementById('loadingIndicator').classList.add('d-none');
+
+                if (data.success) {
+                    campanhaResult.classList.remove('d-none');
+                    campanhaText.innerHTML = data.campanha.replace(/\n/g, '<br>');  // Formatação para quebra de linha
+                } else {
+                    campanhaResult.classList.remove('d-none');
+                    campanhaText.textContent = "Erro ao gerar a campanha: " + data.error;
+                }
+            })
+            .catch(error => {
+                console.error("Erro ao gerar a campanha:", error);
+                alert("Ocorreu um erro ao gerar a campanha. Tente novamente.");
+                document.getElementById('loadingIndicator').classList.add('d-none');
+            });
+    });
+</script>
+
+{% endblock %}
